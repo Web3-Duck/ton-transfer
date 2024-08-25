@@ -1,36 +1,62 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { Address, beginCell, Cell, toNano } from '@ton/core';
+import { Address, beginCell, Cell, fromNano, Slice, toNano } from '@ton/core';
 import { MultiTransfer } from '../wrappers/MultiTransfer';
 import '@ton/test-utils';
 import { ExampleJettonMaster } from '../wrappers/JettonExample_ExampleJettonMaster';
 import { ExampleJettonWallet } from '../build/JettonExample/tact_ExampleJettonWallet';
-import { equal } from 'assert';
 
 const storeAddresses = (addresses: any[]) => {
-    const cells = [];
+    let allCount = addresses.length;
+    let refs = [];
+    let cells = [];
     let currentCell = beginCell();
+    let currentRef = beginCell();
+
     for (let i = 0; i < addresses.length; i++) {
+        let currentCount = i + 1;
         const address = addresses[i].address;
         const amount = addresses[i].amount;
-        if (i % 3 === 0 && i !== 0) {
-            cells.push(currentCell.endCell());
-            currentCell = beginCell().storeUint(amount, 64).storeAddress(address);
-        } else {
-            currentCell.storeUint(amount, 64).storeAddress(address);
+        currentCell.storeUint(amount, 64).storeAddress(address);
+        if (currentCount === allCount) {
+            currentCell.endCell();
+            cells.push(currentCell);
+        } else if (currentCount % 3 === 0) {
+            currentCell.endCell();
+            cells.push(currentCell);
+            currentCell = beginCell();
         }
     }
 
-    cells.push(currentCell.endCell());
+    for (let i = 0; i < cells.length; i++) {
+        const cell = cells[i];
+        currentRef.storeRef(cell);
+        if ((i + 1) % 3 === 0) {
+            refs.unshift(currentRef);
+            currentRef = beginCell();
+        } else if (i === cells.length - 1) {
+            refs.unshift(currentRef);
+        }
+    }
 
-    const cell = beginCell();
+    let current = refs[0].endCell();
+    for (let i = 0; i < refs.length - 1; i++) {
+        let nextRef = refs[i + 1];
+        nextRef.storeRef(current);
+        current = nextRef.endCell();
+    }
+    const commentCell = beginCell()
+        .storeBit(1)
+        .storeRef(
+            beginCell()
+                .storeUint(0, 32) // 预留32位用于标识
+                .storeStringTail('你好啊') // 存储评论内容
+                .endCell(),
+        )
+        .endCell();
 
-    cell.storeUint(addresses.length, 4);
+    let topCurrentCell = beginCell().storeUint(allCount, 64).storeRef(current).storeMaybeRef(commentCell).endCell();
 
-    cells.forEach((c) => {
-        cell.storeRef(c);
-    });
-    const slice = cell.endCell();
-    return slice;
+    return topCurrentCell;
 };
 
 describe('MultiTransfer', () => {
@@ -60,7 +86,7 @@ describe('MultiTransfer', () => {
 
         simpleJetton = blockchain.openContract(await ExampleJettonMaster.fromInit(deployer.address, cell));
 
-        multiTransfer = blockchain.openContract(await MultiTransfer.fromInit(0n));
+        multiTransfer = blockchain.openContract(await MultiTransfer.fromInit(deployer.address));
 
         await multiTransfer.send(
             deployer.getSender(),
@@ -87,8 +113,12 @@ describe('MultiTransfer', () => {
         const deployerDataContract = blockchain.openContract(ExampleJettonWallet.fromAddress(deployerDataAddress));
         const toDataAddress = await simpleJetton.getGetWalletAddress(toWallet.address);
         const addresses = [];
-        for (let i = 0; i < 12; i++) {
-            addresses.push({ amount: 1n, address: toWallet.address });
+        const allAmount = 100;
+        for (let i = 0; i < allAmount; i++) {
+            addresses.push({
+                amount: BigInt(1),
+                address: toWallet.address,
+            });
         }
         const multiAmount = addresses.reduce((acc, { amount }) => acc + amount, 0n);
         const forward_payload = storeAddresses(addresses);
@@ -96,7 +126,7 @@ describe('MultiTransfer', () => {
         await deployerDataContract.send(
             deployer.getSender(),
             {
-                value: toNano('3'),
+                value: toNano('30'),
             },
             {
                 $$type: 'JettonTransfer',
@@ -104,7 +134,7 @@ describe('MultiTransfer', () => {
                 query_id: 1n,
                 destination: multiTransfer.address,
                 response_destination: deployer.address,
-                forward_ton_amount: toNano(1),
+                forward_ton_amount: toNano(allAmount * 0.08),
                 custom_payload: null,
                 forward_payload: forward_payload.asSlice(),
             },
@@ -114,6 +144,6 @@ describe('MultiTransfer', () => {
             .openContract(ExampleJettonWallet.fromAddress(toDataAddress))
             .getGetWalletData();
 
-        equal(toDataContract.balance, 12n, '余额不对');
+        expect(toDataContract.balance).toBe(BigInt(allAmount));
     });
 });

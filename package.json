@@ -4,7 +4,7 @@
     "scripts": {
         "start": "blueprint run",
         "build": "rm -rf ./build/* && blueprint build --all",
-        "test": "jest --verbose"
+        "test": "rm -rf ./build/* && blueprint build --all && jest --verbose"
     },
     "devDependencies": {
         "@ton/blueprint": "^0.22.0",
