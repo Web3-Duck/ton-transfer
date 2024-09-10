@@ -17,9 +17,7 @@ message(0x0f8a7ea5) JettonTransfer {
     forward_payload: Slice as remaining; // optional custom data that should be sent to the destination address.
 }
 
-message UpdateFee {
-    new_fee: Int as coins; // new fee value
-}
+ 
 
 message Withdraw {
     amount: Int as coins; // amount of jettons to withdraw
@@ -27,20 +25,14 @@ message Withdraw {
 
 contract MultiTransfer with Deployable {
     owner: Address;
-    fee: Int = ton("0.01");
-    
+     
     const gasConsumption: Int = ton("0.002");
     const minTonsForStorage: Int = ton("0.01");
     
     init(owner: Address) {
         self.owner = owner;
     }
-
-    receive(msg:UpdateFee){
-        let ctx: Context = context(); // Check sender
-        require(ctx.sender == self.owner, "Only owner can update fee");
-        self.fee = msg.new_fee;
-    }
+ 
 
     receive(msg:Withdraw){
         let ctx: Context = context(); // Check sender
@@ -57,14 +49,14 @@ contract MultiTransfer with Deployable {
     receive(msg: JettonTransferNotification) {
         let ctx: Context = context(); // Check sender
         let payload: Slice = msg.forward_payload;
-        let remianValue: Int = ctx.value - self.gasConsumption - self.minTonsForStorage;
+        let remianValue: Int = ctx.value;
         let allCount: Int = 0;
         
         if (!payload.empty()) {
             allCount = payload.loadUint(64);  
         }
 
-        let allConsume: Int = (allCount + 1) * ctx.readForwardFee() + (allCount + 1) * self.gasConsumption + self.minTonsForStorage + allCount * ton("0.04") + allCount * self.fee;
+        let allConsume: Int = (allCount + 1) * ctx.readForwardFee() + (allCount + 1) * self.gasConsumption + self.minTonsForStorage + allCount * ton("0.06") + allCount;
         require(remianValue > allConsume, "Not enough funds to transfer");
         remianValue = remianValue - allConsume;
 
@@ -113,16 +105,7 @@ contract MultiTransfer with Deployable {
             }
         }
 
-        if(allCount > 0){
-            send(SendParameters{
-            to: self.owner,
-            value: allCount * self.fee,
-            mode: SendIgnoreErrors | SendPayGasSeparately,
-            bounce: false,
-            body: "owner fee".asComment(),
-        });
-        }
-     
+      
 
         send(SendParameters{
             to: msg.sender,
@@ -131,13 +114,12 @@ contract MultiTransfer with Deployable {
             bounce: false,
             body: emptyCell()
         });
+        dump("Transfer done");
     }
 
     get fun owner(): Address {
         return self.owner;
     }
 
-    get fun fee(): Int {
-        return self.fee;
-    }
+ 
 }
