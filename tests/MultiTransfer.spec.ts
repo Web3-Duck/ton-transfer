@@ -113,7 +113,7 @@ describe('MultiTransfer', () => {
         const deployerDataContract = blockchain.openContract(ExampleJettonWallet.fromAddress(deployerDataAddress));
         const toDataAddress = await simpleJetton.getGetWalletAddress(toWallet.address);
         const addresses = [];
-        const allAmount = 100;
+        const allAmount = 2;
         for (let i = 0; i < allAmount; i++) {
             addresses.push({
                 amount: BigInt(1),

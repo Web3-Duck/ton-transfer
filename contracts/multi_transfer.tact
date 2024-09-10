@@ -75,7 +75,7 @@ contract MultiTransfer with Deployable {
             let commentCell: Cell = payload.loadRef();
             let commentSlice: Slice = commentCell.asSlice();
             let isEmpty: Bool = commentSlice.empty();
-            let forwardAmount: Int = isEmpty ? 0 : 1;
+            let forwardAmount: Int = isEmpty ? 0 : ton("0.005");
             let forwardPayload: Slice = isEmpty ? emptySlice : commentSlice;
             let currentRef: Cell = topSlice.loadRef();
             let currentSlice: Slice = currentRef.asSlice();
@@ -98,7 +98,7 @@ contract MultiTransfer with Deployable {
 
                 send(SendParameters{
                     to: ctx.sender,
-                    value: ton("0.04"),
+                    value: ton("0.06"),
                     mode: SendIgnoreErrors,
                     bounce: false,
                     body: JettonTransfer{
@@ -106,7 +106,6 @@ contract MultiTransfer with Deployable {
                         amount: amount,
                         destination: address,
                         response_destination: msg.sender,
-                        custom_payload: null,
                         forward_ton_amount: forwardAmount,
                         forward_payload: forwardPayload
                     }.toCell()

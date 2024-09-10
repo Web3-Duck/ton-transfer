@@ -51,7 +51,6 @@ struct WalletData {
     jetton: Address; // address of Jetton master-address
     jetton_wallet_code: Cell; // with code of this wallet
 }
-
 trait JettonWallet {
     balance: Int;
     owner: Address;
@@ -137,7 +136,6 @@ trait JettonWallet {
     // @dev  _internal_transfer_notification will send notification to the owner of the jetton wallet
 
     virtual inline fun _internal_transfer_notification(ctx: Context, msg: JettonInternalTransfer) {
-        dump(msg.forward_payload);
         if (msg.forward_ton_amount > 0) {
             send(SendParameters{
                     to: self.owner,
