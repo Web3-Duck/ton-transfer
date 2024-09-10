@@ -134,7 +134,7 @@ describe('MultiTransfer', () => {
                 query_id: 1n,
                 destination: multiTransfer.address,
                 response_destination: deployer.address,
-                forward_ton_amount: toNano(allAmount * 0.08),
+                forward_ton_amount: toNano(allAmount * 0.07),
                 custom_payload: null,
                 forward_payload: forward_payload.asSlice(),
             },
